@@ -47,14 +47,15 @@ bool ParseMpf(
     return false;
   const bool littleEndian = tiff.starts_with("II");
 
+  // sums rather than tiff.size() - n, which would wrap for a short TIFF
   const uint32_t ifd = GetUnsigned(tiff, 4, 4, littleEndian);
-  if (ifd > tiff.size() - 2)
+  if (static_cast<size_t>(ifd) + 2 > tiff.size())
     return false;
   const uint32_t count = GetUnsigned(tiff, ifd, 2, littleEndian);
   for (uint32_t i = 0; i < count; ++i)
   {
     const size_t entry = ifd + 2 + 12 * static_cast<size_t>(i);
-    if (entry > tiff.size() - 12)
+    if (entry + 12 > tiff.size())
       return false;
     if (GetUnsigned(tiff, entry, 2, littleEndian) != 0xB002)
       continue;
@@ -62,7 +63,7 @@ bool ParseMpf(
     // The gain map is the second picture
     const uint32_t bytes = GetUnsigned(tiff, entry + 4, 4, littleEndian);
     const uint32_t entries = GetUnsigned(tiff, entry + 8, 4, littleEndian);
-    if (bytes < 32 || entries > tiff.size() - 32)
+    if (bytes < 32 || static_cast<size_t>(entries) + 32 > tiff.size())
       return false;
     size = GetUnsigned(tiff, entries + 20, 4, littleEndian);
     const uint32_t relative = GetUnsigned(tiff, entries + 24, 4, littleEndian);

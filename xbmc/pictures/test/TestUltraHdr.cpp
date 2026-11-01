@@ -115,6 +115,25 @@ TEST(TestUltraHdr, NoGainMap)
                   .image.empty());
 }
 
+TEST(TestUltraHdr, ShortMpf)
+{
+  // MPF indexes cut short before their entry, and before the MP entries it points at
+  const std::string gainMapXmp = "<rdf:Description hdrgm:Version=\"1.0\"/>";
+  const std::string xmp = "<x:xmpmeta xmlns:x=\"adobe:ns:meta/\"><rdf:Description "
+                          "hdrgm:Version=\"1.0\"/></x:xmpmeta>\xFF\xD9";
+  const std::string mpf = MakeMpf(4, 8);
+  for (const size_t cut : {10u, 12u, 22u, 30u})
+  {
+    // the segment's length is the cut one, as a broken file would say
+    const std::string content = mpf.substr(4, 4 + cut);
+    const size_t length = content.size() + 2;
+    const std::string segment = std::string("\xFF\xE2") + static_cast<char>(length >> 8) +
+                                static_cast<char>(length & 0xFF) + content;
+    EXPECT_TRUE(Read("\xFF\xD8" + segment + xmp + MakeJpeg(gainMapXmp)).image.empty())
+        << "TIFF of " << cut << " bytes";
+  }
+}
+
 TEST(TestUltraHdr, MotionPhotoWithoutItsClip)
 {
   // An editor dropped the clip but left its length in the XMP container; the MPF index is still right
