@@ -15,6 +15,7 @@
 #include "dialogs/GUIDialogBusy.h"
 #include "filesystem/Directory.h"
 #include "filesystem/File.h"
+#include "filesystem/SpecialProtocol.h"
 #include "messaging/ApplicationMessenger.h"
 #include "threads/IRunnable.h"
 #include "utils/Crc32.h"
@@ -215,7 +216,8 @@ std::string ExtractMotionPhotoClip(const std::string& path)
 
   const std::string clipPath =
       StringUtils::Format("{}{:08x}-{}.mp4", CLIP_FOLDER, Crc32::Compute(path), clipSize);
-  if (CFile::Exists(clipPath, false))
+  // special:// Exists() still asks the directory cache, which can outlive the folder
+  if (CFile::Exists(CSpecialProtocol::TranslatePath(clipPath), false))
     return clipPath;
 
   // Only a complete copy gets the clip's name, so a copy cut short is never used
@@ -249,7 +251,9 @@ std::string ExtractMotionPhotoClip(const std::string& path)
 
 void ClearMotionPhotoClips()
 {
-  if (CDirectory::Exists(std::string(CLIP_FOLDER)))
-    CDirectory::RemoveRecursive(std::string(CLIP_FOLDER));
+  // the real path for the same reason as in ExtractMotionPhotoClip()
+  const std::string folder = CSpecialProtocol::TranslatePath(std::string(CLIP_FOLDER));
+  if (CDirectory::Exists(folder, false))
+    CDirectory::RemoveRecursive(folder);
 }
 } // namespace KODI::PICTURE
