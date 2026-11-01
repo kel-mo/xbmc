@@ -105,6 +105,19 @@ TEST(TestUltraHdr, ValuePerChannel)
   EXPECT_FLOAT_EQ(gainMap.params.offsetSdr, 1.0f / 64);
 }
 
+TEST(TestUltraHdr, PrettyPrintedXmp)
+{
+  const PICTURE::GainMap gainMap = Read(MakeUltraHdr(
+      "<rdf:Description hdrgm:Version=\"1.0\" hdrgm:HDRCapacityMax=\"3\">\n"
+      "  <hdrgm:GainMapMax>\n    <rdf:Seq>\n      <rdf:li>3</rdf:li>\n      <rdf:li>2.9</rdf:li>\n"
+      "      <rdf:li>2.8</rdf:li>\n    </rdf:Seq>\n  </hdrgm:GainMapMax>\n"
+      "  <hdrgm:Gamma>\n    1.2\n  </hdrgm:Gamma>\n</rdf:Description>"));
+
+  EXPECT_FALSE(gainMap.image.empty());
+  EXPECT_FLOAT_EQ(gainMap.params.max, 3.0f);
+  EXPECT_FLOAT_EQ(gainMap.params.gamma, 1.2f);
+}
+
 TEST(TestUltraHdr, NoGainMap)
 {
   EXPECT_TRUE(Read(MakeJpeg("<rdf:Description/>")).image.empty());
