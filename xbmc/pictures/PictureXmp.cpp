@@ -19,6 +19,15 @@ constexpr size_t XMP_SEARCH_SIZE = 256 * 1024;
 // XML whitespace, which pretty-printed XMP has between elements and around values
 constexpr std::string_view XML_SPACE = " \t\r\n";
 
+std::string_view Trim(std::string_view value)
+{
+  const size_t first = value.find_first_not_of(XML_SPACE);
+  if (first == std::string_view::npos)
+    return {};
+  value = value.substr(first);
+  return value.substr(0, value.find_last_not_of(XML_SPACE) + 1);
+}
+
 uint64_t ToNumber(std::string_view value)
 {
   uint64_t number = 0;
@@ -77,17 +86,41 @@ std::string_view GetValue(std::string_view xmp, std::string_view name)
     }
     const size_t end = xmp.find('<', start);
     if (end != std::string_view::npos)
-    {
-      std::string_view value = xmp.substr(start, end - start);
-      const size_t first = value.find_first_not_of(XML_SPACE);
-      if (first == std::string_view::npos)
-        return {};
-      value = value.substr(first);
-      return value.substr(0, value.find_last_not_of(XML_SPACE) + 1);
-    }
+      return Trim(xmp.substr(start, end - start));
   }
 
   return {};
+}
+
+std::vector<std::string_view> GetValues(std::string_view xmp, std::string_view name)
+{
+  const std::string element = "<" + std::string(name) + ">";
+  size_t start = xmp.find(element);
+  if (start != std::string_view::npos)
+    start = xmp.find_first_not_of(XML_SPACE, start + element.size());
+  if (start == std::string_view::npos || !xmp.substr(start).starts_with("<rdf:Seq>"))
+  {
+    const std::string_view value = GetValue(xmp, name);
+    if (value.empty())
+      return {};
+    return {value};
+  }
+
+  std::vector<std::string_view> values;
+  const size_t end = xmp.find("</rdf:Seq>", start);
+  if (end == std::string_view::npos)
+    return values;
+  constexpr std::string_view listItem = "<rdf:li>";
+  for (size_t item = xmp.find(listItem, start); item != std::string_view::npos && item < end;
+       item = xmp.find(listItem, item + listItem.size()))
+  {
+    const size_t valueStart = item + listItem.size();
+    const size_t valueEnd = xmp.find('<', valueStart);
+    if (valueEnd == std::string_view::npos)
+      break;
+    values.push_back(Trim(xmp.substr(valueStart, valueEnd - valueStart)));
+  }
+  return values;
 }
 
 uint64_t GetUnsigned(std::string_view xmp, std::string_view name)

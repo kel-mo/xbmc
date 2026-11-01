@@ -60,6 +60,18 @@ std::string MakeMpf(uint32_t gainMapSize, uint32_t gainMapOffset)
          static_cast<char>(length & 0xFF) + content;
 }
 
+void ExpectChannels(const PICTURE::GainMapChannels& channels, float r, float g, float b)
+{
+  EXPECT_FLOAT_EQ(channels[0], r);
+  EXPECT_FLOAT_EQ(channels[1], g);
+  EXPECT_FLOAT_EQ(channels[2], b);
+}
+
+void ExpectChannels(const PICTURE::GainMapChannels& channels, float value)
+{
+  ExpectChannels(channels, value, value, value);
+}
+
 PICTURE::GainMap Read(const std::string& contents)
 {
   XFILE::CFile* file = XBMC_CREATETEMPFILE(".jpg");
@@ -84,11 +96,11 @@ TEST(TestUltraHdr, GainMap)
   const PICTURE::GainMap gainMap = Read(MakeUltraHdr(gainMapXmp));
 
   EXPECT_EQ(gainMap.image, MakeJpeg(gainMapXmp));
-  EXPECT_FLOAT_EQ(gainMap.params.min, 0.5f);
-  EXPECT_FLOAT_EQ(gainMap.params.max, 2.5f);
-  EXPECT_FLOAT_EQ(gainMap.params.gamma, 1.2f);
-  EXPECT_FLOAT_EQ(gainMap.params.offsetSdr, 0.0f);
-  EXPECT_FLOAT_EQ(gainMap.params.offsetHdr, 0.0f);
+  ExpectChannels(gainMap.params.min, 0.5f);
+  ExpectChannels(gainMap.params.max, 2.5f);
+  ExpectChannels(gainMap.params.gamma, 1.2f);
+  ExpectChannels(gainMap.params.offsetSdr, 0.0f);
+  ExpectChannels(gainMap.params.offsetHdr, 0.0f);
   EXPECT_FLOAT_EQ(gainMap.params.capacityMin, 0.0f);
   EXPECT_FLOAT_EQ(gainMap.params.capacityMax, 2.5f);
 }
@@ -101,8 +113,8 @@ TEST(TestUltraHdr, ValuePerChannel)
                         "<rdf:li>2.8</rdf:li></rdf:Seq></hdrgm:GainMapMax></rdf:Description>"));
 
   EXPECT_FALSE(gainMap.image.empty());
-  EXPECT_FLOAT_EQ(gainMap.params.max, 3.0f);
-  EXPECT_FLOAT_EQ(gainMap.params.offsetSdr, 1.0f / 64);
+  ExpectChannels(gainMap.params.max, 3.0f, 2.9f, 2.8f);
+  ExpectChannels(gainMap.params.offsetSdr, 1.0f / 64);
 }
 
 TEST(TestUltraHdr, PrettyPrintedXmp)
@@ -114,8 +126,20 @@ TEST(TestUltraHdr, PrettyPrintedXmp)
       "  <hdrgm:Gamma>\n    1.2\n  </hdrgm:Gamma>\n</rdf:Description>"));
 
   EXPECT_FALSE(gainMap.image.empty());
-  EXPECT_FLOAT_EQ(gainMap.params.max, 3.0f);
-  EXPECT_FLOAT_EQ(gainMap.params.gamma, 1.2f);
+  ExpectChannels(gainMap.params.max, 3.0f, 2.9f, 2.8f);
+  ExpectChannels(gainMap.params.gamma, 1.2f);
+}
+
+TEST(TestUltraHdr, TwoValuesAreNotAChannelEach)
+{
+  // a list must give one value or three; anything else keeps the default
+  const PICTURE::GainMap gainMap =
+      Read(MakeUltraHdr("<rdf:Description hdrgm:Version=\"1.0\" hdrgm:HDRCapacityMax=\"3\">"
+                        "<hdrgm:GainMapMax><rdf:Seq><rdf:li>3</rdf:li><rdf:li>2.9</rdf:li>"
+                        "</rdf:Seq></hdrgm:GainMapMax></rdf:Description>"));
+
+  EXPECT_FALSE(gainMap.image.empty());
+  ExpectChannels(gainMap.params.max, 1.0f);
 }
 
 TEST(TestUltraHdr, NoGainMap)
@@ -170,5 +194,5 @@ TEST(TestUltraHdr, MotionPhotoWithoutItsClip)
 
   const PICTURE::GainMap read = Read(primary + gainMap);
   EXPECT_EQ(read.image, gainMap);
-  EXPECT_FLOAT_EQ(read.params.max, 2.0f);
+  ExpectChannels(read.params.max, 2.0f);
 }

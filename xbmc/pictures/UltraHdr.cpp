@@ -14,9 +14,11 @@
 #include "utils/URIUtils.h"
 #include "utils/log.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <string_view>
+#include <vector>
 
 using namespace KODI::PICTURE;
 
@@ -26,6 +28,20 @@ float GetFloat(std::string_view xmp, std::string_view name, float fallback)
 {
   const std::string_view value = XMP::GetValue(xmp, name);
   return value.empty() ? fallback : StringUtils::ToFloat(value, fallback);
+}
+
+// one value for all three channels, or one for each
+GainMapChannels GetChannels(std::string_view xmp,
+                            std::string_view name,
+                            const GainMapChannels& fallback)
+{
+  const std::vector<std::string_view> values = XMP::GetValues(xmp, name);
+  if (values.size() != 1 && values.size() != 3)
+    return fallback;
+  GainMapChannels channels{};
+  for (size_t c = 0; c < channels.size(); ++c)
+    channels[c] = StringUtils::ToFloat(values[values.size() == 1 ? 0 : c], fallback[c]);
+  return channels;
 }
 
 uint32_t GetUnsigned(std::string_view data, size_t pos, size_t bytes, bool littleEndian)
@@ -167,20 +183,23 @@ GainMap KODI::PICTURE::ReadGainMap(const std::string& path)
     return {};
 
   GainMapParams& params = gainMap.params;
-  params.min = GetFloat(gainMapXmp, "hdrgm:GainMapMin", params.min);
-  params.max = GetFloat(gainMapXmp, "hdrgm:GainMapMax", params.max);
-  params.gamma = GetFloat(gainMapXmp, "hdrgm:Gamma", params.gamma);
-  params.offsetSdr = GetFloat(gainMapXmp, "hdrgm:OffsetSDR", params.offsetSdr);
-  params.offsetHdr = GetFloat(gainMapXmp, "hdrgm:OffsetHDR", params.offsetHdr);
+  params.min = GetChannels(gainMapXmp, "hdrgm:GainMapMin", params.min);
+  params.max = GetChannels(gainMapXmp, "hdrgm:GainMapMax", params.max);
+  params.gamma = GetChannels(gainMapXmp, "hdrgm:Gamma", params.gamma);
+  params.offsetSdr = GetChannels(gainMapXmp, "hdrgm:OffsetSDR", params.offsetSdr);
+  params.offsetHdr = GetChannels(gainMapXmp, "hdrgm:OffsetHDR", params.offsetHdr);
   params.capacityMin = GetFloat(gainMapXmp, "hdrgm:HDRCapacityMin", params.capacityMin);
   params.capacityMax = GetFloat(gainMapXmp, "hdrgm:HDRCapacityMax", params.capacityMax);
-  for (const float value : {params.min, params.max, params.gamma, params.offsetSdr,
-                            params.offsetHdr, params.capacityMin, params.capacityMax})
+  const auto finite = [](float value) { return std::isfinite(value); };
+  for (const GainMapChannels& channels :
+       {params.min, params.max, params.gamma, params.offsetSdr, params.offsetHdr})
   {
-    if (!std::isfinite(value))
+    if (!std::ranges::all_of(channels, finite))
       return {};
   }
-  if (params.gamma <= 0.0f || params.capacityMax <= params.capacityMin)
+  if (!finite(params.capacityMin) || !finite(params.capacityMax) ||
+      std::ranges::any_of(params.gamma, [](float gamma) { return gamma <= 0.0f; }) ||
+      params.capacityMax <= params.capacityMin)
     return {};
 
   return gainMap;
