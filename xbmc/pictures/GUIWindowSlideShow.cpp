@@ -1306,6 +1306,13 @@ bool CGUIWindowSlideShow::OnMessage(CGUIMessage& message)
       break;
 
       case GUI_MSG_PLAYBACK_ERROR:
+        // A moving photo whose clip won't play stays in the slideshow as a photo
+        if (m_bPlayingMotion &&
+            !CServiceBroker::GetAppComponents().GetComponent<CApplicationPlayer>()->IsPlaying())
+        {
+          EndMotion();
+          break;
+        }
         // While a player is running, the error is a late one from a video already left behind
         if (m_bPlayingVideo && m_iVideoSlide >= 0 &&
             m_iVideoSlide < static_cast<int>(m_slides.size()) &&
