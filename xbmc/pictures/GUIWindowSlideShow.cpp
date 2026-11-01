@@ -482,6 +482,9 @@ void CGUIWindowSlideShow::Process(unsigned int currentTime, CDirtyRegionList &re
   const auto appPower = components.GetComponent<CApplicationPowerHandling>();
   if (m_bSlideShow && !m_bPause && !appPower->IsInScreenSaver())
     appPower->ResetScreenSaver();
+  // A slideshow that Reset() emptied, with its window still open, has nothing to show in HDR
+  if (m_hdrOutput && m_slides.empty())
+    SetHdrOutput(false);
   int iSlides = m_slides.size();
   if (!iSlides)
     return;
