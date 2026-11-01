@@ -1454,6 +1454,9 @@ void CGUIWindowSlideShow::EndMotion()
 
 bool CGUIWindowSlideShow::IsShowingVideo() const
 {
+  // A reset slideshow has no current slide
+  if (m_iCurrentSlide < 0 || m_iCurrentSlide >= static_cast<int>(m_slides.size()))
+    return false;
   // A video's thumbnail, or a moving photo, stays on screen until the clip has a picture to show
   if (!IsVideo(*m_slides.at(m_iCurrentSlide)) && !m_bPlayingMotion)
     return false;
