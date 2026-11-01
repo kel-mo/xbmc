@@ -12,6 +12,7 @@
 
 #include <cstdint>
 #include <string>
+#include <utility>
 
 #include <gtest/gtest.h>
 
@@ -168,6 +169,30 @@ TEST(TestUltraHdr, ShortMpf)
                                 static_cast<char>(length & 0xFF) + content;
     EXPECT_TRUE(Read("\xFF\xD8" + segment + xmp + MakeJpeg(gainMapXmp)).image.empty())
         << "TIFF of " << cut << " bytes";
+  }
+}
+
+TEST(TestUltraHdr, MpfOffsetsThatWrap)
+{
+  // offsets that wrap a 32-bit size_t once the bytes read there are added
+  const std::string gainMap = MakeJpeg("<rdf:Description hdrgm:Version=\"1.0\"/>");
+  const std::string xmp = "<x:xmpmeta xmlns:x=\"adobe:ns:meta/\"><rdf:Description "
+                          "hdrgm:Version=\"1.0\"/></x:xmpmeta>\xFF\xD9";
+  const size_t primarySize = 2 + MakeMpf(0, 0).size() + xmp.size();
+  const std::string mpf =
+      MakeMpf(static_cast<uint32_t>(gainMap.size()), static_cast<uint32_t>(primarySize - 10));
+  EXPECT_EQ(Read("\xFF\xD8" + mpf + xmp + gainMap).image, gainMap);
+
+  // the IFD's offset at byte 12 of the APP2 segment, the MP entries' offset at byte 26
+  for (const auto& [at, offset] : {std::pair<size_t, uint32_t>{12, 0xFFFFFFFE},
+                                   {12, 0xFFFFFFFF},
+                                   {26, 0xFFFFFFE1},
+                                   {26, 0xFFFFFFFF}})
+  {
+    std::string broken = mpf;
+    broken.replace(at, 4, LittleEndian(offset, 4));
+    EXPECT_TRUE(Read("\xFF\xD8" + broken + xmp + gainMap).image.empty())
+        << std::hex << offset << " at byte " << std::dec << at;
   }
 }
 
