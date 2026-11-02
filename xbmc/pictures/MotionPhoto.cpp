@@ -116,7 +116,10 @@ bool IsLivePhotoStill(const std::string& path)
   if (!file.Open(path))
     return false;
 
-  std::string head(static_cast<size_t>(std::min(file.GetLength(), MAKER_NOTE_SEARCH_SIZE)), '\0');
+  const int64_t fileSize = file.GetLength();
+  if (fileSize < 0)
+    return false;
+  std::string head(static_cast<size_t>(std::min(fileSize, MAKER_NOTE_SEARCH_SIZE)), '\0');
   if (head.empty() || file.Read(head.data(), head.size()) != static_cast<ssize_t>(head.size()))
     return false;
 
@@ -239,6 +242,8 @@ std::string ExtractMotionPhotoClip(const std::string& path)
     return {};
 
   const int64_t fileSize = file.GetLength();
+  if (fileSize < 0)
+    return {};
   std::string head(static_cast<size_t>(std::min(fileSize, XMP_SEARCH_SIZE)), '\0');
   if (head.empty() || file.Read(head.data(), head.size()) != static_cast<ssize_t>(head.size()))
     return {};
