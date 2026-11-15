@@ -399,7 +399,13 @@ bool CFFmpegImage::Initialize(unsigned char* buffer, size_t bufSize)
   else if (is_tiff)
     inp = av_find_input_format("tiff_pipe");
   else if (is_webp)
-    inp = av_find_input_format("webp_pipe");
+  {
+    // only FFmpeg 9 and later can demux animated WebP
+    if (IsAnimatedWebP(buffer, bufSize))
+      inp = av_find_input_format("webp_anim");
+    if (!inp)
+      inp = av_find_input_format("webp_pipe");
+  }
   else if (m_strMimeType == "image/jp2")
     inp = av_find_input_format("j2k_pipe");
   // brute force parse if above check already failed
@@ -506,6 +512,13 @@ bool CFFmpegImage::Initialize(unsigned char* buffer, size_t bufSize)
   }
 
   return true;
+}
+
+bool CFFmpegImage::IsAnimatedWebP(const unsigned char* buffer, size_t bufSize)
+{
+  // the animation flag of the VP8X chunk, which has to come first
+  return bufSize > 20 && std::memcmp(buffer, "RIFF", 4) == 0 &&
+         std::memcmp(buffer + 8, "WEBPVP8X", 8) == 0 && (buffer[20] & 0x02) != 0;
 }
 
 AVFrame* CFFmpegImage::ExtractFrame()

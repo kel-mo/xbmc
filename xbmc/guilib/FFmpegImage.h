@@ -74,6 +74,7 @@ public:
   void SetColorMetadata(const ImageColorMetadata& color) override;
 
   bool Initialize(unsigned char* buffer, size_t bufSize);
+  static bool IsAnimatedWebP(const unsigned char* buffer, size_t bufSize);
 
   std::shared_ptr<Frame> ReadFrame();
 

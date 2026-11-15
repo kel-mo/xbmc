@@ -42,8 +42,21 @@
 #include "FFmpegImage.h"
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <exception>
+
+namespace
+{
+bool IsAnimatedWebP(const std::string& path)
+{
+  XFILE::CFile file;
+  std::array<unsigned char, 21> header{};
+  return file.Open(path) &&
+         file.Read(header.data(), header.size()) == static_cast<ssize_t>(header.size()) &&
+         CFFmpegImage::IsAnimatedWebP(header.data(), header.size());
+}
+} // namespace
 
 /************************************************************************/
 /*                                                                      */
@@ -381,13 +394,16 @@ const CTextureArray& CGUITextureManager::Load(const std::string& strTextureName,
     return pMap->GetTexture();
   }
   else if (StringUtils::EndsWithNoCase(strPath, ".gif") ||
-           StringUtils::EndsWithNoCase(strPath, ".apng"))
+           StringUtils::EndsWithNoCase(strPath, ".apng") ||
+           (StringUtils::EndsWithNoCase(strPath, ".webp") && IsAnimatedWebP(strPath)))
   {
     std::string mimeType;
     if (StringUtils::EndsWithNoCase(strPath, ".gif"))
       mimeType = "image/gif";
     else if (StringUtils::EndsWithNoCase(strPath, ".apng"))
       mimeType = "image/apng";
+    else
+      mimeType = "image/webp";
 
     XFILE::CFile file;
     std::vector<uint8_t> buf;
