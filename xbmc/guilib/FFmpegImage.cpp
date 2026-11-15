@@ -417,6 +417,12 @@ bool CFFmpegImage::Initialize(unsigned char* buffer, size_t bufSize)
     inp = av_find_input_format("avif");
   else if (m_strMimeType == "image/heif" || m_strMimeType == "image/heic")
     inp = av_find_input_format("heic");
+  // TGA has no signature that a probe could find
+  else if (m_strMimeType == "image/tga" || m_strMimeType == "image/x-tga")
+  {
+    inp = av_find_input_format("image2pipe");
+    m_fctx->video_codec_id = AV_CODEC_ID_TARGA;
+  }
 
   if (avformat_open_input(&m_fctx, NULL, inp, NULL) < 0)
   {

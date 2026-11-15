@@ -418,6 +418,7 @@ const std::unordered_map<std::string, std::string>& GetMap()
       {"texi", "application/x-texinfo"},
       {"texinfo", "application/x-texinfo"},
       {"text", "text/plain"},
+      {"tga", "image/x-tga"},
       {"tgz", "application/x-compressed"},
       {"tif", "image/tiff"},
       {"tiff", "image/tiff"},
